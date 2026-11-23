@@ -294,7 +294,7 @@ class Desktop(QMainWindow):
             if port and port.is_open:
                 try:
                     data=port.read(port.in_waiting or 1)
-                    if data: output.moveCursor(QTextCursor(QTextCursor.MoveOperation.End)); output.insertPlainText(data.decode("utf-8",errors="replace"))
+                    if data: output.moveCursor(QTextCursor.MoveOperation.End); output.insertPlainText(data.decode("utf-8",errors="replace"))
                 except Exception as exc: output.append("\n[Read error] "+str(exc)); state["port"]=None; connect.setText("Connect")
         refresh.clicked.connect(scan); connect.clicked.connect(toggle); send.clicked.connect(transmit); command.returnPressed.connect(transmit)
         timer=QTimer(w); timer.timeout.connect(poll); timer.start(50)
