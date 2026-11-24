@@ -16,6 +16,7 @@ Stability and architecture update for the AMH-OS Windows desktop-shell prototype
 
 - Hardware Center now uses a bounded LF frame assembler that handles fragmented and coalesced serial reads, CRLF, and oversized-frame recovery.
 - Hardware Center tracks one outstanding request, matches response IDs, uses monotonic timeout measurement, and closes the serial port cleanly.
+- Serial Monitor polling is non-blocking and closes the port after read failures.
 - The PowerShell terminal runs asynchronously so long-running commands do not freeze the desktop; each command requires confirmation and the UI states that commands execute with the Windows user's permissions.
 - Calculator arithmetic is evaluated without eval() and now limits expression size, exponent magnitude and numeric result size.
 - Diagnostics renders each report field on its own line.
