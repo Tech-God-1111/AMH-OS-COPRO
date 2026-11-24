@@ -16,6 +16,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+          cache-dependency-path: desktop/AMH-OS-Desktop-v10.0/pyproject.toml
       - name: Install desktop dependencies and test tools
         run: python -m pip install -e ".[test]"
       - name: Compile desktop entry point
