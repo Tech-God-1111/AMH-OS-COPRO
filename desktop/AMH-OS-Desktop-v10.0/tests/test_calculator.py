@@ -19,7 +19,7 @@ def test_supported_arithmetic(expression, expected):
     "2 ** (2 ** 101)",
     "1 / 0",
     "True + 1",
-    "9" * 100,
+    "9" * 2000,
 ])
 def test_rejects_unsafe_or_invalid_expressions(expression):
     with pytest.raises((ValueError, SyntaxError, ZeroDivisionError, OverflowError)):
