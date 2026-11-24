@@ -5,7 +5,7 @@ from datetime import datetime
 
 import psutil
 from PySide6.QtCore import Qt, QTimer, QPoint, QProcess
-from PySide6.QtGui import QAction, QColor, QFont, QLinearGradient, QPainter, QPen
+from PySide6.QtGui import QAction, QColor, QFont, QLinearGradient, QPainter, QPen, QTextCursor
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
     QHBoxLayout, QGridLayout, QFrame, QLineEdit, QListWidget, QListWidgetItem,
@@ -314,7 +314,7 @@ class AMHDesktop(QMainWindow):
         def append_output(data):
             text = bytes(data).decode("utf-8", errors="replace")
             if text:
-                output.moveCursor(output.textCursor().MoveOperation.End)
+                output.moveCursor(QTextCursor.MoveOperation.End)
                 output.insertPlainText(text)
 
         def read_stdout():
