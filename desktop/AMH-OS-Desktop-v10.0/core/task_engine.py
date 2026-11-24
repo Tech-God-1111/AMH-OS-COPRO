@@ -6,6 +6,7 @@ import json
 import uuid
 
 VALID_TARGETS = {"auto", "s3", "wroom", "uno-1", "uno-2"}
+TASK_PROTOCOL_VERSION = 1
 UNO_PAYLOAD_LIMIT = 256  # conservative JSON budget for the Uno's 2 KB SRAM
 
 
@@ -16,6 +17,7 @@ class TaskRequest:
     payload: dict
     target: str = "auto"
     priority: int = 5
+    timeout_ms: int = 3000
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     @classmethod
@@ -35,6 +37,8 @@ class TaskRequest:
             raise ValueError(f"target must be one of: {', '.join(sorted(VALID_TARGETS))}")
         if type(self.priority) is not int or not 0 <= self.priority <= 9:
             raise ValueError("priority must be an integer from 0 to 9")
+        if type(self.timeout_ms) is not int or not 100 <= self.timeout_ms <= 60000:
+            raise ValueError("timeout_ms must be between 100 and 60000")
         try:
             encoded = json.dumps(self.payload, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
         except (TypeError, ValueError, RecursionError) as exc:
@@ -50,6 +54,8 @@ class TaskRequest:
             "payload": self.payload,
             "target": self.target,
             "priority": self.priority,
+            "timeout_ms": self.timeout_ms,
+            "protocol_version": TASK_PROTOCOL_VERSION,
             "created_at": self.created_at,
         }
 
