@@ -4,8 +4,8 @@ from pathlib import Path
 import psutil
 import serial
 from serial.tools import list_ports
-from PySide6.QtCore import Qt, QTimer, QProcess
-from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QTextCursor
+from PySide6.QtCore import Qt, QTimer, QProcess, QUrl
+from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QTextCursor, QDesktopServices
 from core.serial_protocol import LineBuffer
 from core.calculator import evaluate_expression
 from apps.processing_suite import ProcessingSuiteMixin
@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QDialog,QLabel,Q
  QTextEdit,QMessageBox,QFileDialog,QProgressBar,QComboBox,QCheckBox,QMenu,
  QTableWidget,QTableWidgetItem,QHeaderView)
 
-VERSION = "10.1"
+VERSION = "10.2"
 VERSION_NUM = 10
 ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("APPDATA", str(Path.home()))) / "AMH-OS"
@@ -23,7 +23,7 @@ DATA.mkdir(parents=True, exist_ok=True)
 LOG_PATH = DATA / "amh-os.log"
 logging.basicConfig(filename=LOG_PATH, level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s", encoding="utf-8")
-APPS = [("📁","File Explorer"),("⌨️","Terminal"),("📊","System Monitor"),
+APPS = [("📁","File Explorer"),("🌐","Internet"),("📶","Connectivity Hub"),("⌨️","Terminal"),("📊","System Monitor"),
         ("📝","Notes"),("🧮","Calculator"),("⚙️","Settings"),("ℹ️","About AMH-OS")]
 if VERSION_NUM >= 5: APPS.insert(5,("🔌","Serial Monitor"))
 if VERSION_NUM >= 6: APPS.insert(6,("🧩","Hardware Center"))
@@ -149,11 +149,15 @@ class Desktop(ProcessingSuiteMixin, QMainWindow):
         p.show(); p.raise_()
 
     def open_app(self,name):
+        if name == "Internet":
+            if not QDesktopServices.openUrl(QUrl("https://www.google.com")):
+                QMessageBox.warning(self,"Browser unavailable","Windows could not open the default browser.")
+            return
         existing=self.windows.get(name)
         if existing:
             existing.showNormal(); existing.raise_(); existing.activateWindow(); return
         builders={"File Explorer":self.file_explorer,"Terminal":self.terminal,"System Monitor":self.monitor,
-                  "Notes":self.notes,"Calculator":self.calculator,"Settings":self.settings,"About AMH-OS":self.about}
+                  "Notes":self.notes,"Calculator":self.calculator,"Settings":self.settings,"About AMH-OS":self.about,"Connectivity Hub":self.connectivity_hub}
         if VERSION_NUM>=5: builders["Serial Monitor"]=self.serial_monitor
         if VERSION_NUM>=6: builders["Hardware Center"]=self.hardware_center
         if VERSION_NUM>=7: builders["Appearance"]=self.appearance
@@ -292,6 +296,40 @@ class Desktop(ProcessingSuiteMixin, QMainWindow):
             except Exception as exc: result.setText("Invalid expression: "+str(exc))
         btn=QPushButton("Calculate"); btn.setObjectName("action")
         btn.clicked.connect(calc); entry.returnPressed.connect(calc); box.addWidget(btn)
+        return w
+
+    def connectivity_hub(self):
+        w=AppWindow("Connectivity Hub",self,(680,480))
+        box=QVBoxLayout(w)
+        title=QLabel("📶  Connectivity Hub")
+        title.setStyleSheet("font-size:22px;font-weight:800")
+        box.addWidget(title)
+        note=QLabel("AMH-OS uses your Windows network and Bluetooth adapters. These controls open the native Windows panels, so your existing drivers, saved networks and pairing settings stay in control.")
+        note.setWordWrap(True); note.setObjectName("muted"); box.addWidget(note)
+
+        def panel(title_text,description,settings_uri,button_text):
+            frame=QFrame(); frame.setObjectName("popup")
+            layout=QVBoxLayout(frame)
+            heading=QLabel(title_text); heading.setStyleSheet("font-size:17px;font-weight:700")
+            detail=QLabel(description); detail.setWordWrap(True); detail.setObjectName("muted")
+            action=QPushButton(button_text); action.setObjectName("action")
+            action.clicked.connect(lambda checked=False,u=settings_uri:
+                QDesktopServices.openUrl(QUrl(u)))
+            layout.addWidget(heading); layout.addWidget(detail); layout.addWidget(action)
+            box.addWidget(frame)
+
+        panel("📡  Wi-Fi",
+              "View nearby wireless networks, connect or disconnect, and manage your Wi-Fi adapter in Windows.",
+              "ms-settings:network-wifi","Open Wi-Fi settings")
+        panel("ᛒ  Bluetooth",
+              "Turn Bluetooth on or off, pair devices, and manage connected keyboards, headphones and other accessories in Windows.",
+              "ms-settings:bluetooth","Open Bluetooth settings")
+        panel("🌐  Network status",
+              "Open Windows network status and troubleshoot your internet connection.",
+              "ms-settings:network-status","Open network status")
+        box.addStretch()
+        footer=QLabel("Note: Wi-Fi and Bluetooth availability depends on the adapters and drivers installed on this PC.")
+        footer.setWordWrap(True); footer.setObjectName("muted"); box.addWidget(footer)
         return w
 
     def settings(self):
