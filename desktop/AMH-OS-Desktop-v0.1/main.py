@@ -345,7 +345,7 @@ class AMHOSWindow(QMainWindow):
         pl.addWidget(muted("This first preview opens your normal Windows command prompt."))
         self.terminal_output = QTextEdit()
         self.terminal_output.setReadOnly(True)
-        self.terminal_output.setPlainText("AMH-OS Desktop Terminal\\n\\nTerminal integration is planned for a later milestone.")
+        self.terminal_output.setPlainText("AMH-OS Desktop Terminal\n\nTerminal integration is planned for a later milestone.")
         pl.addWidget(self.terminal_output, 1)
         launch = QPushButton("Open Windows Terminal")
         launch.setObjectName("primary")
