@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amh-os-desktop"
-version = "10.1.0"
+version = "10.2.0"
 description = "AMH-OS Windows desktop shell prototype"
 requires-python = ">=3.10"
 dependencies = [
