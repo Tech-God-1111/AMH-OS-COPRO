@@ -17,7 +17,7 @@ dependencies = [
 test = ["pytest>=8,<10"]
 
 [tool.setuptools]
-packages = ["core"]
+packages = ["core", "apps"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
