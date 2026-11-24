@@ -31,13 +31,13 @@ class TaskRequest:
             raise ValueError("operation must contain 1–48 non-empty characters")
         if not isinstance(self.payload, dict):
             raise ValueError("payload must be a JSON object")
-        if self.target not in VALID_TARGETS:
+        if not isinstance(self.target, str) or self.target not in VALID_TARGETS:
             raise ValueError(f"target must be one of: {', '.join(sorted(VALID_TARGETS))}")
         if type(self.priority) is not int or not 0 <= self.priority <= 9:
             raise ValueError("priority must be an integer from 0 to 9")
         try:
             encoded = json.dumps(self.payload, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, RecursionError) as exc:
             raise ValueError("payload must contain finite JSON-compatible values") from exc
         if self.target.startswith("uno-") and len(encoded) > UNO_PAYLOAD_LIMIT:
             raise ValueError(f"Uno payload exceeds the {UNO_PAYLOAD_LIMIT}-byte safety budget")
@@ -62,12 +62,16 @@ class TaskResult:
     error: str | None = None
 
     def validate(self) -> None:
-        if not self.task_id or len(self.task_id) > 64:
+        if not isinstance(self.task_id, str) or not self.task_id or len(self.task_id) > 64:
             raise ValueError("result task_id is invalid")
         if type(self.ok) is not bool:
             raise ValueError("result ok must be boolean")
         if not isinstance(self.result, dict):
             raise ValueError("result must be a JSON object")
+        try:
+            json.dumps(self.result, allow_nan=False)
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise ValueError("result must contain finite JSON-compatible values") from exc
         if self.error is not None and not isinstance(self.error, str):
             raise ValueError("error must be text or None")
 
