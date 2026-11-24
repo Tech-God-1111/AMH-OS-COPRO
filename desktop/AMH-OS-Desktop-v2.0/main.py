@@ -301,7 +301,7 @@ class AMHDesktop(QMainWindow):
         box.addWidget(title)
         output = QTextEdit()
         output.setReadOnly(True)
-        output.setPlainText("AMH-OS Terminal v2.0\\nWindows PowerShell session\\nType a command below and press Enter.\\n")
+        output.setPlainText("AMH-OS Terminal v2.0\nWindows PowerShell session\nType a command below and press Enter.\n")
         box.addWidget(output, 1)
         command = QLineEdit()
         command.setPlaceholderText("Enter PowerShell command...")
@@ -311,7 +311,7 @@ class AMHDesktop(QMainWindow):
             if not text:
                 return
             command.clear()
-            output.append("\\nPS> " + text)
+            output.append("\nPS> " + text)
             try:
                 result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", text],
                                         capture_output=True, text=True, timeout=30,
