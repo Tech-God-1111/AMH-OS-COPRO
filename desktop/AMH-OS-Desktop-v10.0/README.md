@@ -19,7 +19,7 @@ Stability and architecture update for the AMH-OS Windows desktop-shell prototype
 - The PowerShell terminal runs asynchronously so long-running commands do not freeze the desktop; each command requires confirmation and the UI states that commands execute with the Windows user's permissions.
 - Calculator arithmetic is evaluated without eval() and now limits expression size, exponent magnitude and numeric result size.
 - Diagnostics renders each report field on its own line.
-- Added hardware-independent task/result/retry data contracts and tests. Uno task payloads are limited to a conservative 256-byte JSON budget.
+- Added hardware-independent task/result/retry data contracts and tests, including protocol version 1 and a bounded per-task timeout. Uno task payloads are limited to a conservative 256-byte JSON budget.
 - Extracted the six processing-suite windows into a separate apps module and kept protocol, calculator and task contracts in core modules.
 - Added packaging metadata, repository ignores and a GitHub Actions test workflow.
 
