@@ -1,5 +1,10 @@
 # Changelog
 
+## 10.2.0
+- Added an Internet desktop icon and Start-menu entry that opens a page in the system's default browser.
+- Added Connectivity Hub with links to Windows Wi-Fi, Bluetooth and Network Status settings.
+- Documented that radio controls, Wi-Fi connections and Bluetooth pairing are managed by Windows and existing device drivers.
+
 ## 10.1.0
 - Replaced fragile Hardware Center receive parsing with bounded newline framing, response ID matching and monotonic timeout tracking.
 - Made Serial Monitor polling non-blocking and close its port on read errors.
