@@ -22,6 +22,8 @@ def evaluate_expression(expression: str):
     """Evaluate basic arithmetic without eval(), with complexity limits."""
     if not isinstance(expression, str) or not expression.strip():
         raise ValueError("Enter an arithmetic expression")
+    if len(expression) > 256:
+        raise ValueError("Expression is too long (256 characters maximum)")
     tree = ast.parse(expression, mode="eval")
     nodes = list(ast.walk(tree))
     if len(nodes) > _MAX_NODES:
