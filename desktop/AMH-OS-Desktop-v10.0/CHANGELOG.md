@@ -2,6 +2,7 @@
 
 ## 10.1.0
 - Replaced fragile Hardware Center receive parsing with bounded newline framing, response ID matching and monotonic timeout tracking.
+- Made Serial Monitor polling non-blocking and close its port on read errors.
 - Made PowerShell execution asynchronous and added per-command confirmation plus an explicit host-permissions warning.
 - Added a bounded arithmetic evaluator to prevent oversized exponent calculations and complex expressions.
 - Corrected Diagnostics report line breaks.
