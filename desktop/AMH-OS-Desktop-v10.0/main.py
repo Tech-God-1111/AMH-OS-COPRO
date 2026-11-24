@@ -398,6 +398,7 @@ class Desktop(QMainWindow):
                 except Exception: pass
             set_connected(False); log(message)
         def connect_device():
+            connection=None
             try:
                 device=port.currentData()
                 if not device: raise RuntimeError("No COM port selected. Connect the ESP32-S3 and refresh ports.")
@@ -409,6 +410,9 @@ class Desktop(QMainWindow):
                 log(f"[Connected to {device} at {baud.currentText()} baud]")
                 log("[Waiting for a compatible newline-delimited JSON bridge]")
             except Exception as exc:
+                if connection is not None:
+                    try: connection.close()
+                    except Exception: pass
                 state["serial"]=None; set_connected(False)
                 status.setText("Connection failed: "+str(exc)); log("[Connection error] "+str(exc))
         def toggle_connection():
