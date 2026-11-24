@@ -6,7 +6,7 @@ A Windows-hosted desktop-shell prototype built with Python and PySide6.
 - Desktop right-click menu: refresh, New note, Settings and About.
 - Quick Settings preview panel (the toggles do not change Windows settings).
 - Start menu app search and taskbar app switching.
-- Notes app with session-only save.
+- Notes app with persistent save under %APPDATA%/AMH-OS/notes.txt.
 - Calculator with a restricted AST arithmetic evaluator; it does not use eval().
 - File Explorer, PowerShell command runner and live CPU/RAM/disk monitor.
 - F11 toggles fullscreen; Esc closes desktop panels; Ctrl+Shift+Q exits.
@@ -20,4 +20,4 @@ python main.py
 ```
 
 ## Important
-AMH-OS v3.0 runs as an application on Windows. It is not independently bootable. Quick Settings are visual previews, Notes are stored only for the current session, and Terminal commands execute in Windows PowerShell. Only run commands you understand.
+AMH-OS v3.0 runs as an application on Windows. It is not independently bootable. Quick Settings are visual previews, Notes are saved persistently under %APPDATA%/AMH-OS, and Terminal commands execute in Windows PowerShell. Only run commands you understand.
