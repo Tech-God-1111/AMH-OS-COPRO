@@ -1,0 +1,24 @@
+name: Python CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  desktop-core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop/AMH-OS-Desktop-v10.0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install desktop dependencies and test tools
+        run: python -m pip install -e ".[test]"
+      - name: Compile desktop entry point
+        run: python -m py_compile main.py core/*.py
+      - name: Run hardware-independent tests
+        run: python -m pytest -q
