@@ -328,7 +328,7 @@ class Desktop(ProcessingSuiteMixin, QMainWindow):
                 else:
                     dev=ports.currentData()
                     if not dev: raise RuntimeError("No COM port selected.")
-                    state["port"]=serial.Serial(dev,int(baud.currentText()),timeout=0.05)
+                    state["port"]=serial.Serial(dev,int(baud.currentText()),timeout=0)
                     connect.setText("Disconnect"); output.append("[Connected to "+dev+"]")
             except Exception as exc: QMessageBox.warning(w,"Serial connection",str(exc))
         def transmit():
@@ -340,8 +340,12 @@ class Desktop(ProcessingSuiteMixin, QMainWindow):
             port=state["port"]
             if port and port.is_open:
                 try:
-                    data=port.read(port.in_waiting or 1)
-                    if data: output.moveCursor(QTextCursor.MoveOperation.End); output.insertPlainText(data.decode("utf-8",errors="replace"))
+                    waiting=port.in_waiting
+                    if waiting:
+                        data=port.read(waiting)
+                        if data:
+                            output.moveCursor(QTextCursor.MoveOperation.End)
+                            output.insertPlainText(data.decode("utf-8",errors="replace"))
                 except Exception as exc: output.append("\n[Read error] "+str(exc)); state["port"]=None; connect.setText("Connect")
         refresh.clicked.connect(scan); connect.clicked.connect(toggle); send.clicked.connect(transmit); command.returnPressed.connect(transmit)
         timer=QTimer(w); timer.timeout.connect(poll); timer.start(50)
