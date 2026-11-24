@@ -6,8 +6,8 @@ MAX_FRAME_BYTES = 512
 class LineBuffer:
     """Assemble LF-delimited byte frames from arbitrarily chunked serial input.
 
-    A frame exceeding max_line_bytes is discarded through its next LF so its
-    tail can never be mistaken for a new command or response.
+    Oversized frames are discarded through their next LF to prevent their tail
+    from being misinterpreted as a separate response.
     """
 
     def __init__(self, max_line_bytes: int = MAX_FRAME_BYTES):
@@ -29,13 +29,13 @@ class LineBuffer:
         frames: list[bytes] = []
         for value in bytes(chunk):
             if self._discarding:
-                if value == 0x0A:
+                if value == 10:
                     self._discarding = False
                 continue
-            if value == 0x0A:
+            if value == 10:
                 frame = bytes(self._buffer)
                 self._buffer.clear()
-                if frame.endswith(b"\\r"):
+                if frame.endswith(bytes([13])):
                     frame = frame[:-1]
                 if frame:
                     frames.append(frame)
