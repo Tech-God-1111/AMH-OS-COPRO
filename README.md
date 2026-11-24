@@ -10,11 +10,11 @@ AMH-OS COPRO is an embedded ESP32 communication bring-up project plus a Windows-
 
 ## Current desktop development branch
 
-The maintained desktop development line is **v10.1**:
+The maintained desktop development line is **v10.2**:
 
-- Branch: https://github.com/Tech-God-1111/AMH-OS-COPRO/tree/v10.1
+- Branch: https://github.com/Tech-God-1111/AMH-OS-COPRO/tree/v10.2
 - Desktop source directory: desktop/AMH-OS-Desktop-v10.0/
-- Release notes and setup: https://github.com/Tech-God-1111/AMH-OS-COPRO/blob/v10.1/desktop/AMH-OS-Desktop-v10.0/README.md
+- Release notes and setup: https://github.com/Tech-God-1111/AMH-OS-COPRO/blob/v10.2/desktop/AMH-OS-Desktop-v10.0/README.md
 
 Earlier branches (v2.0 through v8.0 and v10.0) are retained as historical snapshots. The original main branch contains the v0.1 desktop and embedded bring-up files.
 
@@ -22,12 +22,14 @@ Earlier branches (v2.0 through v8.0 and v10.0) are retained as historical snapsh
 
 Run these commands in PowerShell:
 
-    git clone --branch v10.1 --single-branch https://github.com/Tech-God-1111/AMH-OS-COPRO.git
+    git clone --branch v10.2 --single-branch https://github.com/Tech-God-1111/AMH-OS-COPRO.git
     cd AMH-OS-COPRO\desktop\AMH-OS-Desktop-v10.0
     python -m pip install -r requirements.txt
     python -u main.py
 
 Python 3.10+ and Windows 10/11 are required.
+
+The v10.2 desktop adds a Connectivity Hub that opens Windows Wi-Fi and Bluetooth settings, plus an Internet desktop icon that opens the system's default browser.
 
 ## Hardware
 
