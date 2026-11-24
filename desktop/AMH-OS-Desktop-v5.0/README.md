@@ -15,7 +15,7 @@ python main.py
 - Use F11 to toggle fullscreen and Ctrl+Shift+Q to exit.
 - Logs and persistent Notes are stored under %APPDATA%\\AMH-OS.
 - Quick Settings and Appearance entries are previews, not actual Windows system-control APIs.
-- Hardware Center sends JSON lines for identify/ping/status. It requires compatible firmware on the selected serial port; the current earlier S3 firmware may need a matching USB-to-UART command bridge before this can work end-to-end.
+- Hardware Center is not included in this release; the JSON command interface first appears in v6.0 and requires a compatible PC-to-S3 bridge.
 
 ## Troubleshooting
 Run with `python -u main.py`. Startup and runtime logs are written to `%APPDATA%\\AMH-OS\\amh-os.log`.
