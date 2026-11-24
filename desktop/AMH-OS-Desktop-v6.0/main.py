@@ -430,10 +430,10 @@ class Desktop(QMainWindow):
                     if waiting:
                         chunk=device.read(waiting)
                         state["buffer"].extend(chunk)
-                        while b"\\n" in state["buffer"]:
-                            raw,_,remaining=state["buffer"].partition(b"\\n")
+                        while b"\n" in state["buffer"]:
+                            raw,_,remaining=state["buffer"].partition(b"\n")
                             state["buffer"]=bytearray(remaining)
-                            handle_line(raw.decode("utf-8",errors="replace").rstrip("\\r"))
+                            handle_line(raw.decode("utf-8",errors="replace").rstrip("\r"))
                     if state["pending_id"] is not None:
                         elapsed=datetime.now().timestamp()-state["pending_since"]
                         if elapsed>3.0:
