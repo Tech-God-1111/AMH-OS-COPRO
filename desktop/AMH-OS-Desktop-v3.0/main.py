@@ -5,10 +5,10 @@ import psutil
 import serial
 from serial.tools import list_ports
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter
+from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QTextCursor
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QDialog,QLabel,QPushButton,
  QVBoxLayout,QHBoxLayout,QGridLayout,QFrame,QLineEdit,QListWidget,QListWidgetItem,
- QTextEdit,QMessageBox,QFileDialog,QProgressBar,QComboBox,QCheckBox,QMenu,QTextCursor)
+ QTextEdit,QMessageBox,QFileDialog,QProgressBar,QComboBox,QCheckBox,QMenu)
 
 VERSION = "3.0"
 VERSION_NUM = 3
