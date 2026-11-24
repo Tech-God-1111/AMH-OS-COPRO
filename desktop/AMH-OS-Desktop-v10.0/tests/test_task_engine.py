@@ -8,6 +8,8 @@ def test_task_request_creation_and_serialization():
     task.validate()
     assert task.to_dict()["operation"] == "sum"
     assert task.to_dict()["priority"] == 2
+    assert task.to_dict()["timeout_ms"] == 3000
+    assert task.to_dict()["protocol_version"] == 1
 
 
 def test_task_rejects_unknown_target_and_invalid_priority():
@@ -15,6 +17,8 @@ def test_task_rejects_unknown_target_and_invalid_priority():
         TaskRequest("id", "sum", {}, target="gpu").validate()
     with pytest.raises(ValueError):
         TaskRequest("id", "sum", {}, priority=10).validate()
+    with pytest.raises(ValueError):
+        TaskRequest("id", "sum", {}, timeout_ms=99).validate()
 
 
 def test_uno_payload_budget_is_enforced():
