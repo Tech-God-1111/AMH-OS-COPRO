@@ -1,4 +1,4 @@
-import json, logging, os, platform, subprocess, sys, traceback, time
+import json, logging, os, platform, sys, traceback, time
 from datetime import datetime
 from pathlib import Path
 import psutil
@@ -253,9 +253,6 @@ class Desktop(QMainWindow):
             output.append("\nPS> "+text+"\n")
             process.setArguments(["-NoLogo","-NoProfile","-Command",text])
             process.start()
-            if not process.waitForStarted(1500):
-                output.append("[Could not start PowerShell] "+process.errorString())
-                command.setEnabled(True)
         command.returnPressed.connect(run)
         return w
 
