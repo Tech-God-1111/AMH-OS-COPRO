@@ -4,7 +4,7 @@ from pathlib import Path
 import psutil
 import serial
 from serial.tools import list_ports
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QProcess
 from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QTextCursor
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QDialog,QLabel,QPushButton,
  QVBoxLayout,QHBoxLayout,QGridLayout,QFrame,QLineEdit,QListWidget,QListWidgetItem,
@@ -190,20 +190,52 @@ class Desktop(QMainWindow):
 
     def terminal(self):
         w=AppWindow("AMH-OS Terminal",self,(800,510)); box=QVBoxLayout(w)
-        box.addWidget(QLabel("⌨️  Windows PowerShell")); output=QTextEdit(); output.setReadOnly(True)
-        output.setPlainText("AMH-OS Terminal v"+VERSION+"\nCommands execute in Windows PowerShell.\n"); box.addWidget(output,1)
-        command=QLineEdit(); command.setPlaceholderText("Enter a PowerShell command..."); box.addWidget(command)
+        box.addWidget(QLabel("⌨️  Windows PowerShell"))
+        warning=QLabel("Commands run on your Windows account with its normal permissions. This is not a sandbox.")
+        warning.setWordWrap(True); warning.setObjectName("muted"); box.addWidget(warning)
+        output=QTextEdit(); output.setReadOnly(True)
+        output.setPlainText("AMH-OS Terminal v"+VERSION+"\nCommands execute in Windows PowerShell.\n")
+        box.addWidget(output,1)
+        command=QLineEdit(); command.setPlaceholderText("Enter a PowerShell command...")
+        box.addWidget(command)
+        process=QProcess(w)
+        process.setProgram("powershell.exe")
+        process.setWorkingDirectory(os.path.expanduser("~"))
+        def append_bytes(data):
+            text=bytes(data).decode("utf-8",errors="replace")
+            if text: output.append(text)
+        def read_stdout(): append_bytes(process.readAllStandardOutput())
+        def read_stderr(): append_bytes(process.readAllStandardError())
+        def finished(exit_code,exit_status):
+            read_stdout(); read_stderr()
+            output.append("[PowerShell finished — exit code "+str(exit_code)+"]")
+            command.setEnabled(True); command.setFocus()
+        def failed(error):
+            output.append("[PowerShell process error] "+process.errorString())
+            command.setEnabled(True)
+        process.readyReadStandardOutput.connect(read_stdout)
+        process.readyReadStandardError.connect(read_stderr)
+        process.finished.connect(finished)
+        process.errorOccurred.connect(failed)
         def run():
             text=command.text().strip()
             if not text:return
-            command.clear(); output.append("\nPS> "+text)
-            try:
-                result=subprocess.run(["powershell.exe","-NoProfile","-Command",text],capture_output=True,text=True,timeout=30)
-                output.append(result.stdout or "")
-                if result.stderr: output.append(result.stderr)
-                output.append("[exit code: "+str(result.returncode)+"]")
-            except Exception as exc: output.append(str(exc))
-        command.returnPressed.connect(run); return w
+            if process.state()!=QProcess.ProcessState.NotRunning:
+                output.append("[A command is already running.]"); return
+            answer=QMessageBox.question(
+                w,"Run PowerShell command?",
+                "This command will execute with your Windows user permissions:\n\n"+text+
+                "\n\nOnly continue if you trust this command.",
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if answer!=QMessageBox.StandardButton.Yes:return
+            command.clear(); command.setEnabled(False)
+            output.append("PS> "+text)
+            process.setArguments(["-NoLogo","-NoProfile","-Command",text])
+            process.start()
+        command.returnPressed.connect(run)
+        return w
 
     def monitor(self):
         w=AppWindow("System Monitor",self,(620,420)); box=QVBoxLayout(w); box.addWidget(QLabel("📊  System Monitor"))
