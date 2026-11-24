@@ -305,42 +305,160 @@ class Desktop(QMainWindow):
         w.destroyed.connect(cleanup); scan(); return w
 
     def hardware_center(self):
-        w=AppWindow("Hardware Center",self,(700,480)); box=QVBoxLayout(w); box.addWidget(QLabel("🧩  AMH-OS Hardware Center"))
-        row=QHBoxLayout(); port=QComboBox(); baud=QComboBox(); baud.addItems(["115200","9600"])
-        scan=QPushButton("Scan"); scan.setObjectName("subtle"); row.addWidget(port,1); row.addWidget(baud); row.addWidget(scan); box.addLayout(row)
-        status=QLabel("Not connected"); status.setObjectName("muted"); box.addWidget(status)
-        output=QTextEdit(); output.setReadOnly(True); box.addWidget(output,1)
+        w=AppWindow("Hardware Center",self,(760,540)); box=QVBoxLayout(w)
+        box.addWidget(QLabel("🧩  AMH-OS Hardware Center"))
+        intro=QLabel("Connect to a compatible ESP32-S3 USB serial bridge, then send a JSON command.")
+        intro.setWordWrap(True); intro.setObjectName("muted"); box.addWidget(intro)
+
+        row=QHBoxLayout(); port=QComboBox(); port.setMinimumWidth(230)
+        baud=QComboBox(); baud.addItems(["115200","9600","57600","230400"])
+        scan=QPushButton("Refresh ports"); scan.setObjectName("subtle")
+        connect_btn=QPushButton("Connect"); connect_btn.setObjectName("action")
+        row.addWidget(port,1); row.addWidget(baud); row.addWidget(scan); row.addWidget(connect_btn); box.addLayout(row)
+
+        status=QLabel("Disconnected — select the ESP32-S3 COM port.")
+        status.setObjectName("muted"); box.addWidget(status)
+        output=QTextEdit(); output.setReadOnly(True)
+        output.setPlaceholderText("Connection messages and device responses will appear here.")
+        box.addWidget(output,1)
+
         buttons=QHBoxLayout(); actions={}
         for cmd in ("identify","ping","status"):
-            b=QPushButton(cmd.title()); b.setObjectName("action"); buttons.addWidget(b); actions[cmd]=b
-        box.addLayout(buttons); state={"serial":None,"buffer":""}
+            b=QPushButton(cmd.title()); b.setObjectName("action"); b.setEnabled(False)
+            buttons.addWidget(b); actions[cmd]=b
+        box.addLayout(buttons)
+
+        state={"serial":None,"buffer":bytearray(),"pending_id":None,"pending_cmd":None,
+               "pending_since":0.0,"next_id":0}
+        def log(message):
+            output.append(str(message))
+            output.moveCursor(QTextCursor.MoveOperation.End)
+
+        def set_connected(connected,device=""):
+            connect_btn.setText("Disconnect" if connected else "Connect")
+            port.setEnabled(not connected); baud.setEnabled(not connected); scan.setEnabled(not connected)
+            for button in actions.values(): button.setEnabled(connected)
+            status.setText(("Connected to "+device+" — ready for commands") if connected
+                           else "Disconnected — select the ESP32-S3 COM port.")
+
         def scan_ports():
-            port.clear()
-            for item in list_ports.comports(): port.addItem(f"{item.device} — {item.description}",item.device)
-        def connect():
+            previous=port.currentData()
+            port.blockSignals(True); port.clear()
+            found=list(list_ports.comports())
+            for item in found:
+                port.addItem(f"{item.device} — {item.description}",item.device)
+            if previous:
+                index=port.findData(previous)
+                if index>=0: port.setCurrentIndex(index)
+            port.blockSignals(False)
+            if not found: status.setText("No serial ports found. Connect the ESP32-S3 and refresh.")
+            elif not state["serial"]: status.setText(f"Found {len(found)} serial port(s). Select the ESP32-S3 port.")
+            return len(found)
+
+        def disconnect_device(message="[Disconnected]"):
+            device=state["serial"]
+            state["serial"]=None; state["buffer"].clear()
+            state["pending_id"]=None; state["pending_cmd"]=None
+            if device:
+                try: device.close()
+                except Exception: pass
+            set_connected(False)
+            log(message)
+
+        def connect_device():
             try:
-                if state["serial"]: state["serial"].close(); state["serial"]=None
-                if not port.currentData(): raise RuntimeError("Select the ESP32-S3 COM port.")
-                state["serial"]=serial.Serial(port.currentData(),int(baud.currentText()),timeout=.1)
-                status.setText("Connected to "+port.currentData()); output.append("Serial link opened. Select a command.")
-            except Exception as exc: QMessageBox.warning(w,"Hardware connection",str(exc))
+                device=port.currentData()
+                if not device: raise RuntimeError("No COM port selected. Connect the ESP32-S3 and refresh ports.")
+                connection=serial.Serial(device,int(baud.currentText()),timeout=0,write_timeout=1)
+                connection.dtr=False; connection.rts=False
+                state["serial"]=connection; state["buffer"].clear()
+                state["pending_id"]=None; state["pending_cmd"]=None
+                set_connected(True,device)
+                log(f"[Connected to {device} at {baud.currentText()} baud]")
+                log("[Waiting for a compatible newline-delimited JSON bridge]")
+            except Exception as exc:
+                state["serial"]=None; set_connected(False)
+                status.setText("Connection failed: "+str(exc))
+                log("[Connection error] "+str(exc))
+
+        def toggle_connection():
+            if state["serial"]:
+                disconnect_device()
+            else:
+                connect_device()
+
         def send_cmd(cmd):
+            device=state["serial"]
+            if not device or not device.is_open:
+                status.setText("Not connected. Connect to the ESP32-S3 first.")
+                return
+            if state["pending_id"] is not None:
+                status.setText("A command is already waiting for a response.")
+                return
             try:
-                if not state["serial"]: connect()
-                if not state["serial"]: return
-                state["serial"].reset_input_buffer()
-                state["serial"].write((json.dumps({"id":int(datetime.now().timestamp()*1000)%1000000,"cmd":cmd})+"\n").encode())
-                QTimer.singleShot(500,read_reply)
-            except Exception as exc: output.append("Error: "+str(exc))
-        def read_reply():
+                state["next_id"]=(state["next_id"]+1)%1000000
+                request_id=state["next_id"]
+                payload=json.dumps({"id":request_id,"cmd":cmd},separators=(",",":"))+"\n"
+                device.write(payload.encode("utf-8"))
+                state["pending_id"]=request_id; state["pending_cmd"]=cmd
+                state["pending_since"]=datetime.now().timestamp()
+                status.setText(f"Sent {cmd}; waiting for device response…")
+                log("> "+payload.strip())
+            except Exception as exc:
+                disconnect_device("[Write failed] "+str(exc))
+
+        def handle_line(line):
+            if not line.strip(): return
             try:
-                raw=state["serial"].read_all().decode(errors="replace").strip()
-                output.append(raw if raw else "No reply received. Check the S3 firmware protocol.")
-                if raw: status.setText("Received response from serial device")
-            except Exception as exc: output.append("Read error: "+str(exc))
+                reply=json.loads(line)
+                if isinstance(reply,dict):
+                    reply_id=reply.get("id")
+                    if state["pending_id"] is not None and str(reply_id)==str(state["pending_id"]):
+                        status.setText(f"Received response to {state['pending_cmd']}.")
+                        state["pending_id"]=None; state["pending_cmd"]=None
+                    log("< "+json.dumps(reply,ensure_ascii=False))
+                    return
+            except (ValueError,TypeError):
+                pass
+            log("[Serial] "+line)
+
+        def poll_serial():
+            device=state["serial"]
+            if device and device.is_open:
+                try:
+                    waiting=device.in_waiting
+                    if waiting:
+                        chunk=device.read(waiting)
+                        state["buffer"].extend(chunk)
+                        while b"\n" in state["buffer"]:
+                            raw,_,remaining=state["buffer"].partition(b"\n")
+                            state["buffer"]=bytearray(remaining)
+                            handle_line(raw.decode("utf-8",errors="replace").rstrip("\r"))
+                    if state["pending_id"] is not None:
+                        elapsed=datetime.now().timestamp()-state["pending_since"]
+                        if elapsed>3.0:
+                            cmd=state["pending_cmd"]
+                            state["pending_id"]=None; state["pending_cmd"]=None
+                            status.setText(f"No response to {cmd}. Check the bridge firmware and protocol.")
+                            log(f"[Timeout] No JSON response received for {cmd} within 3 seconds.")
+                except Exception as exc:
+                    disconnect_device("[Serial read error] "+str(exc))
+
         scan.clicked.connect(scan_ports)
-        for cmd,b in actions.items(): b.clicked.connect(lambda checked=False,c=cmd:send_cmd(c))
-        scan_ports(); return w
+        connect_btn.clicked.connect(toggle_connection)
+        for cmd,button in actions.items():
+            button.clicked.connect(lambda checked=False,c=cmd:send_cmd(c))
+        timer=QTimer(w); timer.timeout.connect(poll_serial); timer.start(50)
+        def cleanup():
+            timer.stop()
+            device=state.get("serial")
+            if device:
+                try: device.close()
+                except Exception: pass
+                state["serial"]=None
+        w.destroyed.connect(cleanup)
+        scan_ports()
+        return w
 
     def appearance(self):
         w=AppWindow("Appearance",self,(500,300)); box=QVBoxLayout(w); box.addWidget(QLabel("🎨  Appearance"))
