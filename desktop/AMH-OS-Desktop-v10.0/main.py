@@ -346,7 +346,11 @@ class Desktop(ProcessingSuiteMixin, QMainWindow):
                         if data:
                             output.moveCursor(QTextCursor.MoveOperation.End)
                             output.insertPlainText(data.decode("utf-8",errors="replace"))
-                except Exception as exc: output.append("\n[Read error] "+str(exc)); state["port"]=None; connect.setText("Connect")
+                except Exception as exc:
+                    output.append("\n[Read error] "+str(exc))
+                    try: port.close()
+                    except Exception: pass
+                    state["port"]=None; connect.setText("Connect")
         refresh.clicked.connect(scan); connect.clicked.connect(toggle); send.clicked.connect(transmit); command.returnPressed.connect(transmit)
         timer=QTimer(w); timer.timeout.connect(poll); timer.start(50)
         def cleanup():
