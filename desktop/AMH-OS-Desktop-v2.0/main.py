@@ -1,11 +1,10 @@
 import os
 import sys
 import platform
-import subprocess
 from datetime import datetime
 
 import psutil
-from PySide6.QtCore import Qt, QTimer, QPoint
+from PySide6.QtCore import Qt, QTimer, QPoint, QProcess
 from PySide6.QtGui import QAction, QColor, QFont, QLinearGradient, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
@@ -299,6 +298,9 @@ class AMHDesktop(QMainWindow):
         title = QLabel("⌨️  Terminal")
         title.setObjectName("appTitle")
         box.addWidget(title)
+        warning = QLabel("Commands run on Windows with your current user permissions; this is not a sandbox.")
+        warning.setWordWrap(True)
+        box.addWidget(warning)
         output = QTextEdit()
         output.setReadOnly(True)
         output.setPlainText("AMH-OS Terminal v2.0\nWindows PowerShell session\nType a command below and press Enter.\n")
@@ -306,22 +308,59 @@ class AMHDesktop(QMainWindow):
         command = QLineEdit()
         command.setPlaceholderText("Enter PowerShell command...")
         box.addWidget(command)
+        process = QProcess(win)
+        process.setProgram("powershell.exe")
+
+        def append_output(data):
+            text = bytes(data).decode("utf-8", errors="replace")
+            if text:
+                output.moveCursor(output.textCursor().MoveOperation.End)
+                output.insertPlainText(text)
+
+        def read_stdout():
+            append_output(process.readAllStandardOutput())
+
+        def read_stderr():
+            append_output(process.readAllStandardError())
+
+        def finished(exit_code, exit_status):
+            read_stdout()
+            read_stderr()
+            output.append("\n[PowerShell finished — exit code " + str(exit_code) + "]")
+            command.setEnabled(True)
+
+        def failed(error):
+            output.append("\n[PowerShell process error] " + process.errorString())
+            command.setEnabled(True)
+
+        process.readyReadStandardOutput.connect(read_stdout)
+        process.readyReadStandardError.connect(read_stderr)
+        process.finished.connect(finished)
+        process.errorOccurred.connect(failed)
+
         def run_command():
             text = command.text().strip()
             if not text:
                 return
+            if process.state() != QProcess.ProcessState.NotRunning:
+                output.append("[A command is already running.]")
+                return
+            answer = QMessageBox.question(
+                win,
+                "Run PowerShell command?",
+                "This command will execute with your Windows user permissions:\n\n" + text +
+                "\n\nOnly continue if you trust this command.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
             command.clear()
-            output.append("\nPS> " + text)
-            try:
-                result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", text],
-                                        capture_output=True, text=True, timeout=30,
-                                        cwd=os.path.expanduser("~"))
-                output.append(result.stdout or "")
-                if result.stderr:
-                    output.append(result.stderr)
-                output.append("[exit code: " + str(result.returncode) + "]")
-            except Exception as exc:
-                output.append(str(exc))
+            command.setEnabled(False)
+            output.append("\nPS> " + text + "\n")
+            process.setArguments(["-NoLogo", "-NoProfile", "-Command", text])
+            process.start()
+
         command.returnPressed.connect(run_command)
         return win
 
