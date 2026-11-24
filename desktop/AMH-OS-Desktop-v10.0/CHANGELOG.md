@@ -5,7 +5,7 @@
 - Made PowerShell execution asynchronous and added per-command confirmation plus an explicit host-permissions warning.
 - Added a bounded arithmetic evaluator to prevent oversized exponent calculations and complex expressions.
 - Corrected Diagnostics report line breaks.
-- Added reusable serial framing, task/result contracts, Uno payload budget and automated unit tests.
+- Added reusable serial framing, versioned task/result contracts, bounded task timeouts, Uno payload budget and automated unit tests.
 - Extracted the six processing-suite windows into an apps module; kept serial, calculator and task contracts in core.
 - Added package metadata, dependency bounds, .gitignore and GitHub Actions CI.
 - Kept all six processing-suite apps interface-first; hardware dispatch and telemetry remain intentionally unimplemented pending desktop validation.
