@@ -398,7 +398,7 @@ class Desktop(QMainWindow):
             try:
                 state["next_id"]=(state["next_id"]+1)%1000000
                 request_id=state["next_id"]
-                payload=json.dumps({"id":request_id,"cmd":cmd},separators=(",",":"))+"\\n"
+                payload=json.dumps({"id":request_id,"cmd":cmd},separators=(",",":"))+"\n"
                 device.write(payload.encode("utf-8"))
                 state["pending_id"]=request_id; state["pending_cmd"]=cmd
                 state["pending_since"]=datetime.now().timestamp()
