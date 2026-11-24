@@ -352,7 +352,7 @@ class Desktop(QMainWindow):
     def diagnostics(self):
         w=AppWindow("Diagnostics",self,(700,480)); box=QVBoxLayout(w); box.addWidget(QLabel("🛠️  AMH-OS Diagnostics"))
         report=QTextEdit(); report.setReadOnly(True); box.addWidget(report,1)
-        report.setPlainText("\\n".join([f"AMH-OS {VERSION}",f"Python {platform.python_version()}",platform.platform(),
+        report.setPlainText("\n".join([f"AMH-OS {VERSION}",f"Python {platform.python_version()}",platform.platform(),
             f"CPU cores: {psutil.cpu_count()}",f"RAM: {psutil.virtual_memory().total//(1024**3)} GB",
             f"Log file: {LOG_PATH}",f"User data: {DATA}"]))
         btn=QPushButton("Open log folder"); btn.setObjectName("action")
