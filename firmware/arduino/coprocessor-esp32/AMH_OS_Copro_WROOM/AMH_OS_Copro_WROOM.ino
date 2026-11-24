@@ -24,7 +24,7 @@ bool lastWifiConnected = false;
 
 void sendResponse(JsonDocument &response) {
   serializeJson(response, LinkSerial);
-  LinkSerial.write('\\n');
+  LinkSerial.write('\n');
 }
 
 void startWifi() {
@@ -37,7 +37,7 @@ void startWifi() {
   WiFi.setAutoReconnect(true);
   WiFi.begin(AMH_WIFI_SSID, AMH_WIFI_PASSWORD);
   lastWifiRetryAt = millis();
-  Serial.printf("Connecting to Wi-Fi SSID: %s\\n", AMH_WIFI_SSID);
+  Serial.printf("Connecting to Wi-Fi SSID: %s\n", AMH_WIFI_SSID);
 }
 
 void serviceWifi() {
@@ -45,7 +45,7 @@ void serviceWifi() {
   if (connected != lastWifiConnected) {
     lastWifiConnected = connected;
     if (connected) {
-      Serial.printf("Wi-Fi connected; IP: %s; RSSI: %d dBm\\n",
+      Serial.printf("Wi-Fi connected; IP: %s; RSSI: %d dBm\n",
                     WiFi.localIP().toString().c_str(), WiFi.RSSI());
     } else {
       Serial.println("Wi-Fi disconnected.");
@@ -101,7 +101,7 @@ void setup() {
   Serial.begin(115200);
   delay(300);
   LinkSerial.begin(UART_BAUD, SERIAL_8N1, LINK_RX_PIN, LINK_TX_PIN);
-  Serial.println("\\nAMH-OS coprocessor ready (ESP32-WROOM-32, UART2)");
+  Serial.println("\nAMH-OS coprocessor ready (ESP32-WROOM-32, UART2)");
   startWifi();
 }
 
@@ -110,8 +110,8 @@ void loop() {
 
   while (LinkSerial.available()) {
     char c = static_cast<char>(LinkSerial.read());
-    if (c == '\\r') continue;
-    if (c == '\\n') {
+    if (c == '\r') continue;
+    if (c == '\n') {
       if (!rxLine.isEmpty()) handleLine(rxLine);
       rxLine = "";
     } else if (rxLine.length() < MAX_LINE) rxLine += c;
