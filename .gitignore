@@ -17,3 +17,6 @@ Thumbs.db
 *.log
 *.sqlite3
 .env
+
+# Local ESP32 Wi-Fi credentials (never commit)
+**/amh_wifi_secrets.h
