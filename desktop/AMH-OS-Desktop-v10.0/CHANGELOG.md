@@ -1,5 +1,14 @@
 # Changelog
 
+## 10.1.0
+- Replaced fragile Hardware Center receive parsing with bounded newline framing, response ID matching and monotonic timeout tracking.
+- Made PowerShell execution asynchronous and added per-command confirmation plus an explicit host-permissions warning.
+- Added a bounded arithmetic evaluator to prevent oversized exponent calculations and complex expressions.
+- Corrected Diagnostics report line breaks.
+- Added reusable serial framing, task/result contracts, Uno payload budget and automated unit tests.
+- Added package metadata, dependency bounds, .gitignore and GitHub Actions CI.
+- Kept all six processing-suite apps interface-first; hardware dispatch and telemetry remain intentionally unimplemented pending desktop validation.
+
 ## 10.0.0
 - Created the AMH-OS Desktop v10.0 application directory.
 - Added six interface-first processing suite applications: Workload Monitor, Task Scheduler, Resource Manager, Task Dispatcher, Result Manager and Recovery Manager.
