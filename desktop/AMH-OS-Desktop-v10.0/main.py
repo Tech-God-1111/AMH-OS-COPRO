@@ -1,17 +1,20 @@
-import json, logging, os, platform, subprocess, sys, traceback
+import json, logging, os, platform, subprocess, sys, traceback, time
 from datetime import datetime
 from pathlib import Path
 import psutil
 import serial
 from serial.tools import list_ports
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QProcess
 from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QTextCursor
+from core.serial_protocol import LineBuffer
+from core.calculator import evaluate_expression
+
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QDialog,QLabel,QPushButton,
  QVBoxLayout,QHBoxLayout,QGridLayout,QFrame,QLineEdit,QListWidget,QListWidgetItem,
  QTextEdit,QMessageBox,QFileDialog,QProgressBar,QComboBox,QCheckBox,QMenu,
  QTableWidget,QTableWidgetItem,QHeaderView)
 
-VERSION = "10.0"
+VERSION = "10.1"
 VERSION_NUM = 10
 ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("APPDATA", str(Path.home()))) / "AMH-OS"
@@ -206,20 +209,55 @@ class Desktop(QMainWindow):
 
     def terminal(self):
         w=AppWindow("AMH-OS Terminal",self,(800,510)); box=QVBoxLayout(w)
-        box.addWidget(QLabel("⌨️  Windows PowerShell")); output=QTextEdit(); output.setReadOnly(True)
-        output.setPlainText("AMH-OS Terminal v"+VERSION+"\nCommands execute in Windows PowerShell.\n"); box.addWidget(output,1)
-        command=QLineEdit(); command.setPlaceholderText("Enter a PowerShell command..."); box.addWidget(command)
+        box.addWidget(QLabel("⌨️  Windows PowerShell"))
+        warning=QLabel("Commands run on your Windows account with its normal permissions. This is not a sandbox.")
+        warning.setWordWrap(True); warning.setObjectName("muted"); box.addWidget(warning)
+        output=QTextEdit(); output.setReadOnly(True)
+        output.setPlainText("AMH-OS Terminal v"+VERSION+"\nCommands execute in Windows PowerShell.\n")
+        box.addWidget(output,1)
+        command=QLineEdit(); command.setPlaceholderText("Enter a PowerShell command...")
+        box.addWidget(command)
+        process=QProcess(w)
+        process.setProgram("powershell.exe")
+        def append_bytes(data):
+            if data:
+                output.moveCursor(QTextCursor.MoveOperation.End)
+                output.insertPlainText(bytes(data).decode("utf-8",errors="replace"))
+        def read_stdout(): append_bytes(process.readAllStandardOutput())
+        def read_stderr(): append_bytes(process.readAllStandardError())
+        def finished(exit_code,exit_status):
+            read_stdout(); read_stderr()
+            output.append(f"\n[PowerShell finished — exit code {exit_code}]")
+            command.setEnabled(True); command.setFocus()
+        def failed(error):
+            output.append("\n[PowerShell process error] "+process.errorString())
+            command.setEnabled(True)
+        process.readyReadStandardOutput.connect(read_stdout)
+        process.readyReadStandardError.connect(read_stderr)
+        process.finished.connect(finished)
+        process.errorOccurred.connect(failed)
         def run():
             text=command.text().strip()
             if not text:return
-            command.clear(); output.append("\nPS> "+text)
-            try:
-                result=subprocess.run(["powershell.exe","-NoProfile","-Command",text],capture_output=True,text=True,timeout=30)
-                output.append(result.stdout or "")
-                if result.stderr: output.append(result.stderr)
-                output.append("[exit code: "+str(result.returncode)+"]")
-            except Exception as exc: output.append(str(exc))
-        command.returnPressed.connect(run); return w
+            if process.state()!=QProcess.ProcessState.NotRunning:
+                output.append("[A command is already running.]"); return
+            answer=QMessageBox.question(
+                w,"Run PowerShell command?",
+                "This command will execute on Windows with your current user permissions:\n\n"+text+
+                "\n\nOnly continue if you trust this command.",
+                QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if answer!=QMessageBox.StandardButton.Yes:return
+            command.clear(); command.setEnabled(False)
+            output.append("\nPS> "+text+"\n")
+            process.setArguments(["-NoLogo","-NoProfile","-Command",text])
+            process.start()
+            if not process.waitForStarted(1500):
+                output.append("[Could not start PowerShell] "+process.errorString())
+                command.setEnabled(True)
+        command.returnPressed.connect(run)
+        return w
 
     def monitor(self):
         w=AppWindow("System Monitor",self,(620,420)); box=QVBoxLayout(w); box.addWidget(QLabel("📊  System Monitor"))
@@ -249,19 +287,12 @@ class Desktop(QMainWindow):
         w=AppWindow("Calculator",self,(430,230)); box=QVBoxLayout(w); box.addWidget(QLabel("🧮  Calculator"))
         entry=QLineEdit(); entry.setPlaceholderText("Example: (12 + 4) * 3"); box.addWidget(entry)
         result=QLabel("Enter an expression"); box.addWidget(result)
-        import ast, operator
-        ops={ast.Add:operator.add,ast.Sub:operator.sub,ast.Mult:operator.mul,ast.Div:operator.truediv,ast.Pow:operator.pow,ast.USub:operator.neg}
         def calc():
-            try:
-                def ev(n):
-                    if isinstance(n,ast.Expression): return ev(n.body)
-                    if isinstance(n,ast.Constant) and type(n.value) in (int,float): return n.value
-                    if isinstance(n,ast.BinOp) and type(n.op) in ops: return ops[type(n.op)](ev(n.left),ev(n.right))
-                    if isinstance(n,ast.UnaryOp) and type(n.op) in ops: return ops[type(n.op)](ev(n.operand))
-                    raise ValueError("Only basic arithmetic is supported")
-                result.setText(str(ev(ast.parse(entry.text(),mode="eval"))))
+            try: result.setText(str(evaluate_expression(entry.text())))
             except Exception as exc: result.setText("Invalid expression: "+str(exc))
-        btn=QPushButton("Calculate"); btn.setObjectName("action"); btn.clicked.connect(calc); entry.returnPressed.connect(calc); box.addWidget(btn); return w
+        btn=QPushButton("Calculate"); btn.setObjectName("action")
+        btn.clicked.connect(calc); entry.returnPressed.connect(calc); box.addWidget(btn)
+        return w
 
     def settings(self):
         w=AppWindow("Settings",self,(650,430)); box=QVBoxLayout(w); box.addWidget(QLabel("⚙️  Settings"))
@@ -321,42 +352,127 @@ class Desktop(QMainWindow):
         w.destroyed.connect(cleanup); scan(); return w
 
     def hardware_center(self):
-        w=AppWindow("Hardware Center",self,(700,480)); box=QVBoxLayout(w); box.addWidget(QLabel("🧩  AMH-OS Hardware Center"))
-        row=QHBoxLayout(); port=QComboBox(); baud=QComboBox(); baud.addItems(["115200","9600"])
-        scan=QPushButton("Scan"); scan.setObjectName("subtle"); row.addWidget(port,1); row.addWidget(baud); row.addWidget(scan); box.addLayout(row)
-        status=QLabel("Not connected"); status.setObjectName("muted"); box.addWidget(status)
-        output=QTextEdit(); output.setReadOnly(True); box.addWidget(output,1)
+        w=AppWindow("Hardware Center",self,(760,540)); box=QVBoxLayout(w)
+        box.addWidget(QLabel("🧩  AMH-OS Hardware Center"))
+        intro=QLabel("Connect to an ESP32-S3 USB bridge running the AMH newline-delimited JSON protocol.")
+        intro.setWordWrap(True); intro.setObjectName("muted"); box.addWidget(intro)
+        row=QHBoxLayout(); port=QComboBox(); port.setMinimumWidth(230)
+        baud=QComboBox(); baud.addItems(["115200","9600","57600","230400"])
+        scan=QPushButton("Refresh ports"); scan.setObjectName("subtle")
+        connect_btn=QPushButton("Connect"); connect_btn.setObjectName("action")
+        row.addWidget(port,1); row.addWidget(baud); row.addWidget(scan); row.addWidget(connect_btn); box.addLayout(row)
+        status=QLabel("Disconnected — select the ESP32-S3 COM port.")
+        status.setObjectName("muted"); box.addWidget(status)
+        output=QTextEdit(); output.setReadOnly(True)
+        output.setPlaceholderText("Connection messages and JSON responses appear here.")
+        box.addWidget(output,1)
         buttons=QHBoxLayout(); actions={}
         for cmd in ("identify","ping","status"):
-            b=QPushButton(cmd.title()); b.setObjectName("action"); buttons.addWidget(b); actions[cmd]=b
-        box.addLayout(buttons); state={"serial":None,"buffer":""}
+            button=QPushButton(cmd.title()); button.setObjectName("action")
+            button.setEnabled(False); buttons.addWidget(button); actions[cmd]=button
+        box.addLayout(buttons)
+        state={"serial":None,"lines":LineBuffer(512),"pending_id":None,
+               "pending_cmd":None,"pending_since":0.0,"next_id":0}
+        def log(message):
+            output.append(str(message)); output.moveCursor(QTextCursor.MoveOperation.End)
+        def set_connected(connected,device=""):
+            connect_btn.setText("Disconnect" if connected else "Connect")
+            port.setEnabled(not connected); baud.setEnabled(not connected); scan.setEnabled(not connected)
+            for button in actions.values(): button.setEnabled(connected)
+            status.setText(("Connected to "+device+" — ready for commands") if connected
+                           else "Disconnected — select the ESP32-S3 COM port.")
         def scan_ports():
-            port.clear()
-            for item in list_ports.comports(): port.addItem(f"{item.device} — {item.description}",item.device)
-        def connect():
+            previous=port.currentData()
+            port.blockSignals(True); port.clear()
+            found=list(list_ports.comports())
+            for item in found: port.addItem(f"{item.device} — {item.description}",item.device)
+            if previous:
+                index=port.findData(previous)
+                if index>=0: port.setCurrentIndex(index)
+            port.blockSignals(False)
+            if not found: status.setText("No serial ports found. Connect the ESP32-S3 and refresh.")
+            elif not state["serial"]: status.setText(f"Found {len(found)} serial port(s). Select the ESP32-S3 port.")
+            return len(found)
+        def disconnect_device(message="[Disconnected]"):
+            device=state["serial"]; state["serial"]=None
+            state["lines"].reset(); state["pending_id"]=None; state["pending_cmd"]=None
+            if device:
+                try: device.close()
+                except Exception: pass
+            set_connected(False); log(message)
+        def connect_device():
             try:
-                if state["serial"]: state["serial"].close(); state["serial"]=None
-                if not port.currentData(): raise RuntimeError("Select the ESP32-S3 COM port.")
-                state["serial"]=serial.Serial(port.currentData(),int(baud.currentText()),timeout=.1)
-                status.setText("Connected to "+port.currentData()); output.append("Serial link opened. Select a command.")
-            except Exception as exc: QMessageBox.warning(w,"Hardware connection",str(exc))
+                device=port.currentData()
+                if not device: raise RuntimeError("No COM port selected. Connect the ESP32-S3 and refresh ports.")
+                connection=serial.Serial(device,int(baud.currentText()),timeout=0,write_timeout=1)
+                connection.dtr=False; connection.rts=False
+                state["serial"]=connection; state["lines"].reset()
+                state["pending_id"]=None; state["pending_cmd"]=None
+                set_connected(True,device)
+                log(f"[Connected to {device} at {baud.currentText()} baud]")
+                log("[Waiting for a compatible newline-delimited JSON bridge]")
+            except Exception as exc:
+                state["serial"]=None; set_connected(False)
+                status.setText("Connection failed: "+str(exc)); log("[Connection error] "+str(exc))
+        def toggle_connection():
+            if state["serial"]: disconnect_device()
+            else: connect_device()
         def send_cmd(cmd):
+            device=state["serial"]
+            if not device or not device.is_open:
+                status.setText("Not connected. Connect to the ESP32-S3 first."); return
+            if state["pending_id"] is not None:
+                status.setText("A command is already waiting for a response."); return
             try:
-                if not state["serial"]: connect()
-                if not state["serial"]: return
-                state["serial"].reset_input_buffer()
-                state["serial"].write((json.dumps({"id":int(datetime.now().timestamp()*1000)%1000000,"cmd":cmd})+"\n").encode())
-                QTimer.singleShot(500,read_reply)
-            except Exception as exc: output.append("Error: "+str(exc))
-        def read_reply():
+                state["next_id"]=(state["next_id"]+1)%1000000
+                request_id=state["next_id"]
+                payload=json.dumps({"id":request_id,"cmd":cmd},separators=(",",":"))+"\n"
+                device.write(payload.encode("utf-8"))
+                state["pending_id"]=request_id; state["pending_cmd"]=cmd
+                state["pending_since"]=time.monotonic()
+                status.setText(f"Sent {cmd}; waiting for device response…")
+                log("> "+payload.rstrip("\n"))
+            except Exception as exc: disconnect_device("[Write failed] "+str(exc))
+        def handle_line(line):
+            if not line.strip(): return
             try:
-                raw=state["serial"].read_all().decode(errors="replace").strip()
-                output.append(raw if raw else "No reply received. Check the S3 firmware protocol.")
-                if raw: status.setText("Received response from serial device")
-            except Exception as exc: output.append("Read error: "+str(exc))
-        scan.clicked.connect(scan_ports)
-        for cmd,b in actions.items(): b.clicked.connect(lambda checked=False,c=cmd:send_cmd(c))
-        scan_ports(); return w
+                reply=json.loads(line)
+                if not isinstance(reply,dict): raise ValueError("JSON response must be an object")
+                reply_id=reply.get("id")
+                if state["pending_id"] is not None and str(reply_id)==str(state["pending_id"]):
+                    status.setText(f"Received response to {state['pending_cmd']}.")
+                    state["pending_id"]=None; state["pending_cmd"]=None
+                log("< "+json.dumps(reply,ensure_ascii=False))
+            except (ValueError,TypeError) as exc: log("[Invalid JSON response] "+str(exc)+" — "+line)
+        def poll_serial():
+            device=state["serial"]
+            if device and device.is_open:
+                try:
+                    waiting=device.in_waiting
+                    if waiting:
+                        chunk=device.read(waiting)
+                        for raw in state["lines"].feed(chunk):
+                            handle_line(raw.decode("utf-8",errors="replace"))
+                        if state["lines"].discarded_frames:
+                            log("[Warning] Oversized serial frame discarded.")
+                            state["lines"].discarded_frames=0
+                    if state["pending_id"] is not None and time.monotonic()-state["pending_since"]>3.0:
+                        cmd=state["pending_cmd"]
+                        state["pending_id"]=None; state["pending_cmd"]=None
+                        status.setText(f"No response to {cmd}. Check the bridge firmware and protocol.")
+                        log(f"[Timeout] No JSON response received for {cmd} within 3 seconds.")
+                except Exception as exc: disconnect_device("[Serial read error] "+str(exc))
+        scan.clicked.connect(scan_ports); connect_btn.clicked.connect(toggle_connection)
+        for cmd,button in actions.items(): button.clicked.connect(lambda checked=False,c=cmd:send_cmd(c))
+        timer=QTimer(w); timer.timeout.connect(poll_serial); timer.start(30)
+        def cleanup():
+            timer.stop(); device=state.get("serial")
+            if device:
+                try: device.close()
+                except Exception: pass
+                state["serial"]=None
+        w.destroyed.connect(cleanup); scan_ports()
+        return w
 
     def appearance(self):
         w=AppWindow("Appearance",self,(500,300)); box=QVBoxLayout(w); box.addWidget(QLabel("🎨  Appearance"))
@@ -368,7 +484,7 @@ class Desktop(QMainWindow):
     def diagnostics(self):
         w=AppWindow("Diagnostics",self,(700,480)); box=QVBoxLayout(w); box.addWidget(QLabel("🛠️  AMH-OS Diagnostics"))
         report=QTextEdit(); report.setReadOnly(True); box.addWidget(report,1)
-        report.setPlainText("\\n".join([f"AMH-OS {VERSION}",f"Python {platform.python_version()}",platform.platform(),
+        report.setPlainText("\n".join([f"AMH-OS {VERSION}",f"Python {platform.python_version()}",platform.platform(),
             f"CPU cores: {psutil.cpu_count()}",f"RAM: {psutil.virtual_memory().total//(1024**3)} GB",
             f"Log file: {LOG_PATH}",f"User data: {DATA}"]))
         btn=QPushButton("Open log folder"); btn.setObjectName("action")
